@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #09090b;
+  --color-foreground: #f5f0e8;
+  --color-primary: #dc2626;
+  --color-primary-hover: #b91c1c;
+  --color-primary-light: #fca5a5;
+  --color-secondary: #27272a;
+  --color-secondary-hover: #3f3f46;
+  --color-muted: #a1a1aa;
+  --color-muted-foreground: #71717a;
+  --color-border: #27272a;
+  --color-card: #18181b;
+  --color-card-hover: #27272a;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --font-sans: "Inter", "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "Cairo", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Mobile responsive overrides */
+@media (max-width: 767px) {
+  table {
+    width: 100% !important;
+  }
+  td, th {
+    white-space: normal !important;
+    word-break: break-word;
+  }
+  .overflow-x-auto {
+    max-width: 100vw;
+  }
+}
+
+@layer utilities {
+  .basis-full {
+    flex-basis: 100%;
+  }
+}
+
+@media print {
+  body {
+    background: white !important;
+  }
+  body.print-active-order {
+    visibility: hidden;
+  }
+  body.print-active-order .printable-area.active-print,
+  body.print-active-order .printable-area.active-print * {
+    visibility: visible;
+  }
+  body.print-active-order .printable-area.active-print {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 20px;
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+  .no-print, .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  nav, aside, .sidebar, .navbar, .footer, .whatsapp-button,
+  button, .btn, [role="button"], .no-print-area {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
