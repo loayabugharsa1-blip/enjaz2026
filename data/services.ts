@@ -356,6 +356,9 @@ export function getCalculatorConfig(serviceId: string): {
       },
     },
   };
+  configs["gift-sugar-sheet"] = configs["food-sugar-sheet"];
+  configs["gift-choco-transfer"] = configs["food-choco-transfer"];
+  configs["gift-wafer-paper"] = configs["food-wafer-paper"];
   return configs[serviceId] || null;
 }
 
