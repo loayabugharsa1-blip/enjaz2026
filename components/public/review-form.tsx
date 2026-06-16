@@ -12,11 +12,17 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const [text, setText] = useState("");
   const [rating, setRating] = useState(5);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     if (!name.trim() || !text.trim()) return;
-    addReview(name.trim(), text.trim(), text.trim(), rating);
+    const result = addReview(name.trim(), text.trim(), text.trim(), rating);
+    if (!result) {
+      setError(isRtl ? "يمكنك إرسال تقييم واحد كل 30 ثانية" : "You can submit one review every 30 seconds");
+      return;
+    }
     setName("");
     setText("");
     setRating(5);
@@ -49,6 +55,11 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       <p className="text-sm text-zinc-500 mb-6">
         {isRtl ? "شاركنا تجربتك مع خدماتنا" : "Share your experience with our services"}
       </p>
+      {error && (
+        <div className="bg-red-900/30 border border-red-700 text-red-300 text-sm rounded-lg p-3 mb-4">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-zinc-300 mb-1">

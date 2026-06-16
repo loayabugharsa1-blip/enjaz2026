@@ -33,18 +33,30 @@ const PROTECTED_PATHS = [
   "/admin",
 ];
 
-const ADMIN_API_PREFIXES = [
+// Role-based API access:
+//   admin → everything
+//   employee → orders + customers (full CRUD)
+//   staff → orders + customers (read-only GET)
+const ADMIN_ONLY = [
   "/api/services",
   "/api/inventory",
   "/api/upload",
   "/api/portfolio",
   "/api/users/sync",
   "/api/orders/delete",
+];
+const EMPLOYEE_ACCESS = [
+  ...ADMIN_ONLY,
+  "/api/orders/create",
   "/api/orders/update",
   "/api/orders/status",
   "/api/orders/list",
   "/api/orders/stats",
-  "/api/orders/create",
+  "/api/customers",
+];
+const STAFF_READONLY = [
+  "/api/orders/list",
+  "/api/orders/stats",
   "/api/customers",
 ];
 
@@ -80,6 +92,17 @@ export async function proxy(request: NextRequest) {
   response.headers.set("X-XSS-Protection", "1; mode=block");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  response.headers.set("Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: blob: https:; " +
+    "font-src 'self' data:; " +
+    "connect-src 'self' https://*.supabase.co https://wa.me; " +
+    "frame-ancestors 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self'"
+  );
 
   if (matches(PROTECTED_PATHS, pathname)) {
     response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -121,15 +144,13 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // 5. ALL /api/ routes — require auth + admin check for sensitive endpoints
+  // 5. ALL /api/ routes — role-based authorization
   if (pathname.startsWith("/api/")) {
     if (!isAuthenticated) {
       return NextResponse.json({ error: "غير مصرح. يرجى تسجيل الدخول." }, { status: 401 });
     }
-    if (matches(ADMIN_API_PREFIXES, pathname) && session?.role !== "admin") {
-      return NextResponse.json({ error: "غير مصرح. صلاحيات المسؤول مطلوبة." }, { status: 403 });
-    }
-    // CSRF check for mutating API calls (POST/PUT/DELETE/PATCH on protected endpoints)
+
+    // CSRF check for ALL mutating API calls (applies to admin + employee)
     if (API_MUTATING.includes(method) && !PUBLIC_API_POST.some((p) => pathname === p)) {
       const csrfCookie = request.cookies.get(CSRF_COOKIE)?.value;
       const csrfHeader = request.headers.get(CSRF_HEADER);
@@ -137,6 +158,37 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json({ error: "طلب غير مصرح (CSRF)" }, { status: 403 });
       }
     }
+
+    const role = session?.role || "";
+
+    // Staff can only read (GET) specific endpoints
+    if (role === "staff") {
+      if (API_MUTATING.includes(method)) {
+        return NextResponse.json({ error: "غير مصرح. حساب المشاهدة فقط." }, { status: 403 });
+      }
+      if (!matches(STAFF_READONLY, pathname)) {
+        return NextResponse.json({ error: "غير مصرح. صلاحيات غير كافية." }, { status: 403 });
+      }
+      return response;
+    }
+
+    // Employee can access orders/customers but not admin-only
+    if (role === "employee") {
+      if (!matches(EMPLOYEE_ACCESS, pathname)) {
+        return NextResponse.json({ error: "غير مصرح. صلاحيات غير كافية." }, { status: 403 });
+      }
+      // Employee cannot access admin-only resources (services, inventory, upload, etc.)
+      if (matches(ADMIN_ONLY, pathname)) {
+        return NextResponse.json({ error: "غير مصرح. صلاحيات المسؤول مطلوبة." }, { status: 403 });
+      }
+      return response;
+    }
+
+    // Admin can access everything
+    if (role !== "admin") {
+      return NextResponse.json({ error: "غير مصرح. صلاحية غير معروفة." }, { status: 403 });
+    }
+
     return response;
   }
 

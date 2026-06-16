@@ -1,8 +1,19 @@
 import type { ReviewSubmission } from "@/types/common";
+import { sanitize } from "@/lib/sanitize";
 
 const STORAGE_KEY = "injaz_reviews";
 const SEED_VERSION_KEY = "injaz_reviews_seed_version";
 const SEED_VERSION = "1.0";
+const RATE_LIMIT_KEY = "injaz_review_last_submit";
+const RATE_LIMIT_MS = 30_000;
+
+function checkRateLimit(): boolean {
+  if (typeof window === "undefined") return true;
+  const last = localStorage.getItem(RATE_LIMIT_KEY);
+  if (last && Date.now() - Number(last) < RATE_LIMIT_MS) return false;
+  localStorage.setItem(RATE_LIMIT_KEY, String(Date.now()));
+  return true;
+}
 
 function getAll(): ReviewSubmission[] {
   if (typeof window === "undefined") return [];
@@ -31,7 +42,8 @@ export function getAllReviews(): ReviewSubmission[] {
   return getAll();
 }
 
-export function addReview(name: string, textAr: string, textEn: string, rating: number): ReviewSubmission {
+export function addReview(name: string, textAr: string, textEn: string, rating: number): ReviewSubmission | null {
+  if (!checkRateLimit()) return null;
   let seeded = false;
   try { seeded = localStorage.getItem(SEED_VERSION_KEY) === SEED_VERSION; } catch {}
   if (seeded) {
@@ -40,9 +52,9 @@ export function addReview(name: string, textAr: string, textEn: string, rating: 
   }
   const review: ReviewSubmission = {
     id: crypto.randomUUID(),
-    name,
-    textAr,
-    textEn,
+    name: sanitize(name),
+    textAr: sanitize(textAr),
+    textEn: sanitize(textEn),
     rating,
     isApproved: true,
     createdAt: new Date().toISOString(),
