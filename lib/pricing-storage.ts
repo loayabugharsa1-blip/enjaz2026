@@ -35,6 +35,7 @@ const DEFAULT_RULES: PricingRule[] = [
   { id: "prn-slg-pc", serviceId: "print-sign-light", nameAr: "سعر القطعة - لافتة ضوئية", nameEn: "Per piece - Lighted sign", pricePerUnit: 350, unitType: "piece", updatedAt: new Date().toISOString() },
   { id: "prn-pvc-cm2", serviceId: "print-pvc-board", nameAr: "سعر السم المربع - لوح PVC", nameEn: "Per cm² - PVC board", pricePerUnit: 0.05, unitType: "cm2", updatedAt: new Date().toISOString() },
   { id: "prn-cpy-pc", serviceId: "print-copiest", nameAr: "سعر القطعة - طباعة كوبيست", nameEn: "Per piece - Copiest print", pricePerUnit: 15, unitType: "piece", updatedAt: new Date().toISOString() },
+  { id: "ppr-cpy-pc", serviceId: "papers-copiest", nameAr: "سعر القطعة - طباعة كوبيست (ورق)", nameEn: "Per piece - Copiest print (Paper)", pricePerUnit: 15, unitType: "piece", updatedAt: new Date().toISOString() },
 ];
 
 function getAll(): PricingRule[] {

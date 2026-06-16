@@ -2,8 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { uploadFile } from "@/lib/supabase/storage";
 import { rateLimit } from "@/lib/rate-limit";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_SIZE = 10 * 1024 * 1024;
+
+const MAGIC_BYTES: Record<string, Uint8Array[]> = {
+  "image/jpeg": [new Uint8Array([0xFF, 0xD8, 0xFF])],
+  "image/png": [new Uint8Array([0x89, 0x50, 0x4E, 0x47])],
+  "image/webp": [new Uint8Array([0x52, 0x49, 0x46, 0x46])],
+  "application/pdf": [new Uint8Array([0x25, 0x50, 0x44, 0x46])],
+};
+
+function validateMagicBytes(buffer: ArrayBuffer, mime: string): boolean {
+  const sigs = MAGIC_BYTES[mime];
+  if (!sigs) return false;
+  const header = new Uint8Array(buffer.slice(0, 8));
+  return sigs.some((sig) => sig.every((b, i) => header[i] === b));
+}
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -24,8 +37,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "الملف كبير جداً. الحد الأقصى 10MB" }, { status: 400 });
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (!MAGIC_BYTES[file.type]) {
       return NextResponse.json({ error: "نوع الملف غير مدعوم. JPG, PNG, WebP, PDF فقط" }, { status: 400 });
+    }
+
+    const buffer = await file.arrayBuffer();
+    if (!validateMagicBytes(buffer, file.type)) {
+      return NextResponse.json({ error: "محتويات الملف لا تتطابق مع نوعه المعلن" }, { status: 400 });
     }
 
     const result = await uploadFile(file);

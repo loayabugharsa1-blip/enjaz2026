@@ -21,7 +21,7 @@ function initSession(): Session | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(initSession);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
     setSession(getSession());
@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    setLoading(false);
     const handleStorage = (e: StorageEvent) => {
       if (e.key === null || e.key === "injaz_session") {
         setSession(getSession());

@@ -111,14 +111,17 @@ export function POSCalculator({ onComplete }: POSCalculatorProps) {
   }, [inventory, cart]);
 
   const updateQty = useCallback((invId: string, delta: number) => {
-    setCart((prev) => prev.map((c) => {
-      if (c.inventoryId !== invId) return c;
-      const newQty = c.quantity + delta;
-      if (newQty <= 0) return c;
-      const invItem = inventory.find((i) => i.id === invId);
-      if (invItem && newQty > invItem.quantity) return c;
-      return { ...c, quantity: newQty, total: newQty * c.unitPrice };
-    }));
+    setCart((prev) => {
+      const next = prev.map((c) => {
+        if (c.inventoryId !== invId) return c;
+        const newQty = c.quantity + delta;
+        if (newQty <= 0) return null;
+        const invItem = inventory.find((i) => i.id === invId);
+        if (invItem && newQty > invItem.quantity) return c;
+        return { ...c, quantity: newQty, total: newQty * c.unitPrice };
+      });
+      return next.filter(Boolean) as typeof prev;
+    });
   }, [inventory]);
 
   const removeFromCart = useCallback((invId: string) => {
@@ -160,13 +163,11 @@ export function POSCalculator({ onComplete }: POSCalculatorProps) {
       if (!origItem) continue;
       const ok = await deductQuantity(item.inventoryId, item.quantity);
       if (!ok) {
-        // Rollback all previously deducted items
+        const { updateInventoryItem } = await import("@/lib/db");
         for (const d of deducted) {
           const inv = inventory.find((i) => i.id === d.id);
           if (inv) {
-            inv.quantity = d.origQty;
-            const { updateInventoryItem } = await import("@/lib/db");
-            await updateInventoryItem({ ...inv });
+            await updateInventoryItem({ ...inv, quantity: d.origQty });
           }
         }
         setError(isRtl ? "الكمية المطلوبة غير متوفرة في المخزون" : "Insufficient stock");

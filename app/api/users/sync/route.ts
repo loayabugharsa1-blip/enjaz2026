@@ -24,13 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "users array required" }, { status: 400 });
     }
 
-    const { error: deleteError } = await supabaseAdmin.from("users").delete().neq("id", "none");
-    if (deleteError) {
-      console.error("[api/users/sync] delete failed:", deleteError);
-    }
-
     if (users.length > 0) {
-      const { error: insertError } = await supabaseAdmin.from("users").insert(
+      const { error: upsertError } = await supabaseAdmin.from("users").upsert(
         users.map((u: Record<string, unknown>) => ({
           id: u.id,
           username: u.username,
@@ -39,11 +34,12 @@ export async function POST(request: NextRequest) {
           name: u.name,
           is_active: true,
           created_at: u.createdAt || new Date().toISOString(),
-        }))
+        })),
+        { onConflict: "username" }
       );
-      if (insertError) {
-        console.error("[api/users/sync] insert failed:", insertError);
-        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      if (upsertError) {
+        console.error("[api/users/sync] upsert failed:", upsertError);
+        return NextResponse.json({ error: upsertError.message }, { status: 500 });
       }
     }
 

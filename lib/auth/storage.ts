@@ -26,9 +26,9 @@ export async function seedDefaultUsers(): Promise<void> {
   try {
     const users = getUsers();
     if (users.length > 0) return;
-    const adminHash = await bcrypt.hash("admin123", SALT_ROUNDS);
-    const employeeHash = await bcrypt.hash("employee123", SALT_ROUNDS);
-    const staffHash = await bcrypt.hash("staff123", SALT_ROUNDS);
+    const adminHash = await bcrypt.hash("@dminP@ss2026!", SALT_ROUNDS);
+    const employeeHash = await bcrypt.hash("Emp!oyee2026!", SALT_ROUNDS);
+    const staffHash = await bcrypt.hash("St@ff2026!!", SALT_ROUNDS);
     const defaultUsers: User[] = [
       { id: crypto.randomUUID(), username: "admin", passwordHash: adminHash, role: "admin", name: "مدير النظام", createdAt: new Date().toISOString() },
       { id: crypto.randomUUID(), username: "employee", passwordHash: employeeHash, role: "employee", name: "موظف", createdAt: new Date().toISOString() },
@@ -68,10 +68,6 @@ export async function login(username: string, password: string): Promise<{ succe
 
   const session: Session = { userId: user.id, username: user.username, role: user.role, name: user.name, loginAt: new Date().toISOString() };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-
-  const { signSession } = await import("@/lib/auth/session");
-  const signed = await signSession(JSON.stringify(session));
-  document.cookie = `injaz_session=${encodeURIComponent(signed)}; path=/; max-age=86400; SameSite=Lax; Secure`;
 
   addAuditEntry("تسجيل دخول", user.id, user.name, `دخول ${user.name} (@${user.username})`);
   return { success: true, session };

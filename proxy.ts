@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { verifySession } from "@/lib/auth/session";
 
 const SESSION_COOKIE = "injaz_session";
+const CSRF_COOKIE = "injaz_csrf";
+const CSRF_HEADER = "x-csrf-token";
 
 const PUBLIC_PATHS = [
   "/auth/login",
@@ -83,6 +85,23 @@ export async function proxy(request: NextRequest) {
     response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
   }
 
+  // CSRF token cookie for authenticated pages
+  if (isAuthenticated && (pathname.startsWith("/api/") || matches(PROTECTED_PATHS, pathname))) {
+    const existingToken = request.cookies.get(CSRF_COOKIE)?.value;
+    if (!existingToken || existingToken.length < 16) {
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map((b) => b.toString(36).padStart(2, "0"))
+        .join("");
+      response.cookies.set(CSRF_COOKIE, token, {
+        path: "/",
+        sameSite: "strict",
+        secure: true,
+        httpOnly: false,
+        maxAge: 86400,
+      });
+    }
+  }
+
   // 1. Public pages — no auth
   if (matches(PUBLIC_PATHS, pathname)) return response;
 
@@ -109,6 +128,14 @@ export async function proxy(request: NextRequest) {
     }
     if (matches(ADMIN_API_PREFIXES, pathname) && session?.role !== "admin") {
       return NextResponse.json({ error: "غير مصرح. صلاحيات المسؤول مطلوبة." }, { status: 403 });
+    }
+    // CSRF check for mutating API calls (POST/PUT/DELETE/PATCH on protected endpoints)
+    if (API_MUTATING.includes(method) && !PUBLIC_API_POST.some((p) => pathname === p)) {
+      const csrfCookie = request.cookies.get(CSRF_COOKIE)?.value;
+      const csrfHeader = request.headers.get(CSRF_HEADER);
+      if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
+        return NextResponse.json({ error: "طلب غير مصرح (CSRF)" }, { status: 403 });
+      }
     }
     return response;
   }

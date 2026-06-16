@@ -119,10 +119,10 @@ export async function getAllInventory(): Promise<InventoryItem[]> {
     });
 
     if (cloudItems && cloudItems.length > 0) {
-      // Merge: keep local-only items that don't exist in cloud
       const cloudIds = new Set(cloudItems.map((i) => i.id));
       const localOnly = localItems.filter((i) => !cloudIds.has(i.id));
 
+      // Single readwrite transaction — eliminates race between read and write
       const writeTx = db.transaction("inventory", "readwrite");
       const writeStore = writeTx.objectStore("inventory");
       writeStore.clear();
@@ -136,7 +136,7 @@ export async function getAllInventory(): Promise<InventoryItem[]> {
         writeTx.oncomplete = () => resolve();
         writeTx.onerror = () => reject(new AppError("DB_ERROR", "فشل تحديث المخزون المحلي"));
       });
-      return cloudItems.length > 0 ? [...cloudItems, ...localOnly] : localItems;
+      return [...cloudItems, ...localOnly];
     }
 
     return localItems;
@@ -403,6 +403,7 @@ export async function processSyncQueue(): Promise<number> {
     });
     db.close();
 
+    const syncedIds: number[] = [];
     for (const entry of entries) {
       try {
         const res = await fetch("/api/orders/create", {
@@ -411,20 +412,26 @@ export async function processSyncQueue(): Promise<number> {
           body: JSON.stringify(entry.order),
         });
         if (res.ok) {
-          const delDb = await openDB();
-          const delTx = delDb.transaction("sync_queue", "readwrite");
-          const delStore = delTx.objectStore("sync_queue");
-          delStore.delete(entry.id);
-          await new Promise<void>((resolve, reject) => {
-            delTx.oncomplete = () => resolve();
-            delTx.onerror = () => reject(delTx.error);
-          });
-          delDb.close();
+          syncedIds.push(entry.id);
           processed++;
         }
       } catch {
         // Leave in queue for next retry
       }
+    }
+
+    if (syncedIds.length > 0) {
+      const delDb = await openDB();
+      const delTx = delDb.transaction("sync_queue", "readwrite");
+      const delStore = delTx.objectStore("sync_queue");
+      for (const id of syncedIds) {
+        delStore.delete(id);
+      }
+      await new Promise<void>((resolve, reject) => {
+        delTx.oncomplete = () => resolve();
+        delTx.onerror = () => reject(delTx.error);
+      });
+      delDb.close();
     }
   } catch (err) {
     console.warn("[processSyncQueue] Failed:", err);
@@ -700,7 +707,7 @@ export async function syncFromCloud(): Promise<{ inventory: number; orders: numb
       .from("inventory_items")
       .select("*");
 
-    if (invData) {
+    if (invData && invData.length > 0) {
       const items = (invData as DbInventoryItem[]).map(mapDbInventoryToItem);
       const db = await openDB();
       const tx = db.transaction("inventory", "readwrite");
