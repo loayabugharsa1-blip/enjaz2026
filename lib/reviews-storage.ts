@@ -1,6 +1,8 @@
 import type { ReviewSubmission } from "@/types/common";
 
 const STORAGE_KEY = "injaz_reviews";
+const SEED_VERSION_KEY = "injaz_reviews_seed_version";
+const SEED_VERSION = "1.0";
 
 function getAll(): ReviewSubmission[] {
   if (typeof window === "undefined") return [];
@@ -30,16 +32,22 @@ export function getAllReviews(): ReviewSubmission[] {
 }
 
 export function addReview(name: string, textAr: string, textEn: string, rating: number): ReviewSubmission {
+  let seeded = false;
+  try { seeded = localStorage.getItem(SEED_VERSION_KEY) === SEED_VERSION; } catch {}
+  if (seeded) {
+    try { localStorage.removeItem(SEED_VERSION_KEY); } catch {}
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  }
   const review: ReviewSubmission = {
     id: crypto.randomUUID(),
     name,
     textAr,
     textEn,
     rating,
-    isApproved: false,
+    isApproved: true,
     createdAt: new Date().toISOString(),
   };
-  const all = getAll();
+  const all = seeded ? [] : getAll();
   all.unshift(review);
   saveAll(all);
   return review;
@@ -64,8 +72,10 @@ export function deleteReview(id: string): boolean {
 }
 
 export function seedSampleReviews(): void {
+  let seeded = false;
+  try { seeded = localStorage.getItem(SEED_VERSION_KEY) === SEED_VERSION; } catch {}
   const existing = getAll();
-  if (existing.length > 0) return;
+  if (existing.length > 0 || seeded) return;
   const samples: ReviewSubmission[] = [
     { id: crypto.randomUUID(), name: "أحمد الصالح", textAr: "تعاملت مع إنجاز لطباعة دروع تكريم للموظفين، الجودة كانت ممتازة والتسليم في الوقت المحدد. أنصح بالتعامل معهم.", textEn: "Dealt with Injaz for printing employee appreciation shields. Excellent quality and on-time delivery. Highly recommend.", rating: 5, isApproved: true, createdAt: "2026-05-15T10:00:00.000Z" },
     { id: crypto.randomUUID(), name: "سارة الحربي", textAr: "صمموا لنا هوية بصرية متكاملة للشركة، إبداع واحترافية في العمل. سعرة منافس جداً مقارنة بالجودة.", textEn: "They designed a complete visual identity for our company. Creative and professional work at very competitive prices.", rating: 5, isApproved: true, createdAt: "2026-04-20T10:00:00.000Z" },
@@ -74,4 +84,5 @@ export function seedSampleReviews(): void {
     { id: crypto.randomUUID(), name: "فهد العتيبي", textAr: "لافتة المحل نفذوها باحترافية، تركيب وتصميم رائع. تغيير كبير في شكل المحل. شكراً إنجاز.", textEn: "They executed the shop sign professionally with great design and installation. Transformed the shop's look.", rating: 5, isApproved: true, createdAt: "2026-01-18T10:00:00.000Z" },
   ];
   saveAll(samples);
+  try { localStorage.setItem(SEED_VERSION_KEY, SEED_VERSION); } catch {}
 }
