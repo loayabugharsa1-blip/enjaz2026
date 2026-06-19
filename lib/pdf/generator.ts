@@ -1,132 +1,105 @@
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import type { Order } from "@/types/order";
 import { generateQRCode } from "@/lib/qr/generator";
 
-export async function generateInvoicePDF(order: Order, lang: "ar" | "en" = "ar"): Promise<Blob> {
-  try {
-    const isRtl = lang === "ar";
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+function invoiceHTML(order: Order, isRtl: boolean): string {
+  const rowsHtml = order.items
+    .map(
+      (item, i) => `
+      <tr>
+        <td style="text-align:center;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${i + 1}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${isRtl ? item.nameAr : item.nameEn}</td>
+        <td style="text-align:center;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;direction:ltr">${item.quantity}</td>
+        <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;direction:ltr">${item.unitPrice.toLocaleString("en-US")}</td>
+        <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;direction:ltr;font-weight:600">${item.total.toLocaleString("en-US")}</td>
+      </tr>`
+    ).join("");
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(220, 38, 38);
-  if (isRtl) {
-    doc.text("إنجاز للدعاية و الاعلان", 105, 20, { align: "center" });
-  } else {
-    doc.text("Enjaz Advertising", 105, 20, { align: "center" });
-  }
-
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  if (isRtl) {
-    doc.text("فاتورة مبيعات", 105, 28, { align: "center" });
-  } else {
-    doc.text("Sales Invoice", 105, 28, { align: "center" });
-  }
-
-  doc.setFontSize(9);
-  doc.setTextColor(50);
-  const detailsY = 38;
-  if (isRtl) {
-    doc.text(`رقم الفاتورة: ${order.id.slice(0, 8)}`, 15, detailsY);
-    doc.text(`التاريخ: ${new Date(order.createdAt).toLocaleDateString("en-US")}`, 15, detailsY + 5);
-    doc.text(`العميل: ${order.customerName || "نقدي"}`, 15, detailsY + 10);
-    doc.text(`البائع: ${order.createdBy}`, 15, detailsY + 15);
-  } else {
-    doc.text(`Invoice #: ${order.id.slice(0, 8)}`, 15, detailsY);
-    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString("en-US")}`, 15, detailsY + 5);
-    doc.text(`Customer: ${order.customerName || "Cash"}`, 15, detailsY + 10);
-    doc.text(`Seller: ${order.createdBy}`, 15, detailsY + 15);
-  }
-
-  const tableHead = isRtl
-    ? [["#", "الصنف", "الكمية", "السعر", "المجموع"]]
-    : [["#", "Item", "Qty", "Price", "Total"]];
-
-  const tableBody = order.items.map((item, i) => [
-    (i + 1).toString(),
-    isRtl ? item.nameAr : item.nameEn,
-    item.quantity.toString(),
-    `${item.unitPrice.toLocaleString("en-US")} د.ل`,
-    `${item.total.toLocaleString("en-US")} د.ل`,
-  ]);
-
-  autoTable(doc, {
-    head: tableHead,
-    body: tableBody,
-    startY: 58,
-    theme: "striped",
-    headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontStyle: "bold" },
-    bodyStyles: { textColor: [50, 50, 50] },
-    tableLineColor: [200, 200, 200],
-    tableLineWidth: 0.1,
-  });
-
-  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(0);
-  if (isRtl) {
-    doc.text(`الإجمالي: ${order.total.toLocaleString("en-US")} د.ل`, 105, finalY, { align: "center" });
-    doc.text(`العربون: ${order.deposit.toLocaleString("en-US")} د.ل`, 105, finalY + 7, { align: "center" });
-    doc.text(`المتبقي: ${Math.max(0, order.remaining).toLocaleString("en-US")} د.ل`, 105, finalY + 14, { align: "center" });
-  } else {
-    doc.text(`Total: ${order.total.toLocaleString("en-US")} LYD`, 105, finalY, { align: "center" });
-    doc.text(`Deposit: ${order.deposit.toLocaleString("en-US")} LYD`, 105, finalY + 7, { align: "center" });
-    doc.text(`Remaining: ${Math.max(0, order.remaining).toLocaleString("en-US")} LYD`, 105, finalY + 14, { align: "center" });
-  }
-
-  const qrDataUrl = await generateQRCode(order.id);
-  const qrY = finalY + 25;
-  doc.addImage(qrDataUrl, "PNG", 85, qrY, 40, 40);
-  doc.setFontSize(7);
-  doc.setTextColor(150);
-  if (isRtl) {
-    doc.text(`كود تتبع الطلب: ${order.id.slice(0, 8)}`, 105, qrY + 46, { align: "center" });
-  } else {
-    doc.text(`Order tracking: ${order.id.slice(0, 8)}`, 105, qrY + 46, { align: "center" });
-  }
-
-  const stampY = qrY + 52;
-  doc.setDrawColor(220, 38, 38);
-  doc.setLineWidth(0.7);
-  doc.roundedRect(140, stampY, 50, 28, 2, 2, "S");
-  doc.setFontSize(8);
-  doc.setTextColor(220, 38, 38);
-  if (isRtl) {
-    doc.text("إنجاز", 165, stampY + 10, { align: "center" });
-    doc.text("للدعاية و الاعلان", 165, stampY + 16, { align: "center" });
-    doc.text(`تاريخ: ${new Date().toLocaleDateString("en-US")}`, 165, stampY + 22, { align: "center" });
-  } else {
-    doc.text("Enjaz Establishment", 165, stampY + 10, { align: "center" });
-    doc.text("for Advertising", 165, stampY + 16, { align: "center" });
-    doc.text(`Date: ${new Date().toLocaleDateString("en-US")}`, 165, stampY + 22, { align: "center" });
-  }
-
-  doc.setFontSize(8);
-  doc.setTextColor(180);
-  if (isRtl) {
-    doc.text("شكراً لتعاملكم مع إنجاز للدعاية و الاعلان", 105, 290, { align: "center" });
-  } else {
-    doc.text("Thank you for choosing Enjaz Advertising", 105, 290, { align: "center" });
-  }
-  doc.setFontSize(6);
-  doc.setTextColor(150);
-  const contactLine = isRtl
+  const company = isRtl ? "إنجاز للدعاية و الاعلان" : "Enjaz Advertising";
+  const title = isRtl ? "فاتورة مبيعات" : "Sales Invoice";
+  const invNum = isRtl ? "رقم الفاتورة" : "Invoice #";
+  const invDate = isRtl ? "التاريخ" : "Date";
+  const invCust = isRtl ? "العميل" : "Customer";
+  const invSeller = isRtl ? "البائع" : "Cashier";
+  const cash = isRtl ? "نقدي" : "Cash";
+  const hItems = isRtl ? ["#", "الصنف", "الكمية", "السعر", "المجموع"] : ["#", "Item", "Qty", "Price", "Total"];
+  const lTotal = isRtl ? "الإجمالي" : "Total";
+  const lDeposit = isRtl ? "العربون" : "Deposit";
+  const lRemain = isRtl ? "المتبقي" : "Remaining";
+  const lyd = isRtl ? "د.ل" : "LYD";
+  const thankYou = isRtl ? "شكراً لتعاملكم مع إنجاز للدعاية و الاعلان" : "Thank you for choosing Enjaz Advertising";
+  const contactInfo = isRtl
     ? "تنفيذ وإشراف: إنجاز للدعاية و الاعلان | هاتف: 00218910884726 | بريد إلكتروني: enjazprinting2021@gmail.com | العنوان: سرت، ليبيا | فيسبوك: https://www.facebook.com/enjazprinting2021.2022/"
     : "Executed by: Enjaz Advertising | Tel: 00218910884726 | Email: enjazprinting2021@gmail.com | Address: Sirte, Libya | Facebook: https://www.facebook.com/enjazprinting2021.2022/";
-  doc.text(contactLine, 105, 297, { align: "center" });
 
-  return doc.output("blob");
-  } catch {
-    const fallback = new jsPDF();
-    fallback.setFontSize(16);
-    fallback.text("فاتورة - إنجاز للدعاية و الاعلان", 105, 50, { align: "center" });
-    fallback.text(`الطلب: ${order.id.slice(0, 8)}`, 105, 70, { align: "center" });
-    fallback.text(`المبلغ: ${order.total.toLocaleString("en-US")} د.ل`, 105, 90, { align: "center" });
-    return fallback.output("blob");
+  return `
+<div style="width:210mm;min-height:297mm;padding:15mm 15mm 10mm;font-family:'Helvetica','Arial',sans-serif;background:#fff;color:#1a1a1a;direction:${isRtl ? "rtl" : "ltr"}">
+  <div style="text-align:center;border-bottom:3px solid #dc2626;padding-bottom:12px;margin-bottom:18px">
+    <h1 style="font-size:22px;color:#dc2626;margin:0 0 4px">${company}</h1>
+    <p style="font-size:11px;color:#666;margin:0">${title}</p>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:18px;padding:10px;background:#f9fafb;border-radius:6px">
+    <div><span style="color:#888;font-size:10px">${invNum}</span><br><span style="font-weight:600">${order.id.slice(0, 8)}</span></div>
+    <div><span style="color:#888;font-size:10px">${invDate}</span><br><span style="font-weight:600">${new Date(order.createdAt).toLocaleDateString("en-US")}</span></div>
+    <div><span style="color:#888;font-size:10px">${invCust}</span><br><span style="font-weight:600">${order.customerName || cash}</span></div>
+    <div><span style="color:#888;font-size:10px">${invSeller}</span><br><span style="font-weight:600">${order.createdBy}</span></div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
+    <thead>
+      <tr style="background:#dc2626;color:#fff;font-size:12px">
+        ${hItems.map((h) => `<th style="padding:7px 8px;text-align:${h === hItems[1] ? (isRtl ? "right" : "left") : "center"}">${h}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <div style="margin-top:8px">
+    <table style="width:auto;min-width:220px;margin-${isRtl ? "left" : "right"}:0;margin-${isRtl ? "right" : "left"}:auto;border-collapse:collapse">
+      <tr><td style="padding:4px 10px;font-size:12px">${lTotal}</td><td style="padding:4px 10px;font-size:12px;text-align:right;direction:ltr;font-weight:600">${order.total.toLocaleString("en-US")} ${lyd}</td></tr>
+      <tr><td style="padding:4px 10px;font-size:12px">${lDeposit}</td><td style="padding:4px 10px;font-size:12px;text-align:right;direction:ltr">${order.deposit.toLocaleString("en-US")} ${lyd}</td></tr>
+      <tr><td style="padding:6px 10px;font-size:15px;font-weight:700;color:#dc2626;border-top:2px solid #dc2626">${lRemain}</td><td style="padding:6px 10px;font-size:15px;font-weight:700;color:#dc2626;border-top:2px solid #dc2626;text-align:right;direction:ltr">${Math.max(0, order.remaining).toLocaleString("en-US")} ${lyd}</td></tr>
+    </table>
+  </div>
+  <div style="margin-top:15px;display:flex;justify-content:space-between;align-items:start">
+    <div id="invoice-qr"></div>
+    <div style="width:120px;height:70px;border:2px solid #dc2626;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#dc2626">
+      <div>${isRtl ? "إنجاز" : "Enjaz"}</div>
+      <div>${isRtl ? "للدعاية و الاعلان" : "Advertising"}</div>
+      <div>${new Date().toLocaleDateString("en-US")}</div>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:10px;color:#999;margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb">
+    <div>${thankYou}</div>
+    <div style="font-size:7px;color:#aaa;margin-top:5px">${contactInfo}</div>
+  </div>
+</div>`;
+}
+
+export async function generateInvoiceImage(order: Order, isRtl: boolean = true): Promise<Blob> {
+  const container = document.createElement("div");
+  container.innerHTML = invoiceHTML(order, isRtl);
+  container.style.cssText = "position:fixed;left:-9999px;top:0;width:210mm;height:auto;z-index:-1";
+  document.body.appendChild(container);
+
+  try {
+    const qrDataUrl = await generateQRCode(order.id);
+    const qrImg = document.createElement("img");
+    qrImg.src = qrDataUrl;
+    qrImg.style.cssText = "width:80px;height:80px;display:block";
+    const qrSlot = container.querySelector("#invoice-qr");
+    if (qrSlot) qrSlot.appendChild(qrImg);
+
+    await new Promise((r) => setTimeout(r, 150));
+    const { toJpeg } = await import("html-to-image");
+    const dataUrl = await toJpeg(container, { quality: 0.85, pixelRatio: 1, backgroundColor: "#ffffff" });
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    return blob;
+  } finally {
+    document.body.removeChild(container);
   }
+}
+
+export async function generateInvoicePDF(order: Order, lang: "ar" | "en" = "ar"): Promise<Blob> {
+  return generateInvoiceImage(order, lang === "ar");
 }
 
 export function printPDF(blob?: Blob): void {

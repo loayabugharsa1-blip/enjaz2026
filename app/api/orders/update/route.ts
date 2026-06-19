@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, status, total, deposit, remaining, items } = body;
+    const { id, status, total, deposit, remaining, items, invoiceImage } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Missing order id" }, { status: 400 });
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     if (deposit !== undefined) updates.deposit = deposit;
     if (remaining !== undefined) updates.remaining = remaining;
     if (items !== undefined) updates.items = items;
+    if (invoiceImage !== undefined) updates.invoice_image = invoiceImage;
 
     const { data, error } = await supabaseAdmin
       .from("orders")

@@ -1,11 +1,11 @@
-import { generateInvoicePDF } from "@/lib/pdf/generator";
+import { generateInvoiceImage } from "@/lib/pdf/generator";
 import type { Order } from "@/types/order";
 import { fetchWithCSRF } from "@/lib/csrf";
 
 export async function generateAndUploadInvoice(order: Order): Promise<string | null> {
   try {
-    const blob = await generateInvoicePDF(order);
-    const file = new File([blob], `invoice-${order.id.slice(0, 8)}.pdf`, { type: "application/pdf" });
+    const blob = await generateInvoiceImage(order);
+    const file = new File([blob], `invoice-${order.id.slice(0, 8)}.jpg`, { type: "image/jpeg" });
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetchWithCSRF("/api/upload", { method: "POST", body: fd });

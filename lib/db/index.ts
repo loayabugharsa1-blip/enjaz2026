@@ -318,7 +318,12 @@ export async function getAllOrders(): Promise<Order[]> {
       const writeStore = writeTx.objectStore("orders");
       writeStore.clear();
       for (const order of cloudOrders) {
-        writeStore.put(order);
+        const local = localOrders.find((o) => o.id === order.id);
+        if (local?.invoiceImage && !order.invoiceImage) {
+          writeStore.put({ ...order, invoiceImage: local.invoiceImage });
+        } else {
+          writeStore.put(order);
+        }
       }
       for (const order of localOnly) {
         writeStore.put(order);
@@ -327,7 +332,14 @@ export async function getAllOrders(): Promise<Order[]> {
         writeTx.oncomplete = () => resolve();
         writeTx.onerror = () => reject(new AppError("DB_ERROR", "فشل تحديث الطلبات المحلية"));
       });
-      return [...cloudOrders, ...localOnly];
+      const merged = cloudOrders.map((order) => {
+        const local = localOrders.find((o) => o.id === order.id);
+        if (local?.invoiceImage && !order.invoiceImage) {
+          return { ...order, invoiceImage: local.invoiceImage };
+        }
+        return order;
+      });
+      return [...merged, ...localOnly];
     }
 
     return localOrders;
@@ -453,6 +465,7 @@ export async function updateOrder(order: Order): Promise<void> {
           deposit: order.deposit,
           remaining: order.remaining,
           items: order.items,
+          invoiceImage: order.invoiceImage,
         }),
       });
       if (!res.ok) {
