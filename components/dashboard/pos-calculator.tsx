@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useDirection } from "@/hooks/use-direction";
 import { useInventory } from "@/hooks/use-inventory";
 import { getAllServices, seedDefaultServices } from "@/lib/services-db";
+import { getPricingRules } from "@/lib/pricing-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -79,7 +80,10 @@ export function POSCalculator({ onComplete }: POSCalculatorProps) {
         }
       }
     }
-    const unitPrice = (selectedSvc.basePrice || 0) + priceMod;
+    const rules = getPricingRules();
+    const rule = rules.find((r) => r.serviceId === selectedSvc.id);
+    const base = rule?.pricePerUnit ?? selectedSvc.basePrice ?? 0;
+    const unitPrice = base + priceMod;
     const itemId = selectedSvc.id + "-" + crypto.randomUUID().slice(0, 8);
     setCart((prev) => [...prev, {
       inventoryId: itemId,

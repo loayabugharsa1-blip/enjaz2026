@@ -33,10 +33,16 @@ CREATE POLICY "anon_no_access_inventory"
   USING (false);
 
 -- 5. الطلبات: يمكن للعامة الإدراج فقط (تقديم طلب جديد)
+-- الـ middleware يمنع الطلبات غير الموثقة أصلاً
+-- الـ WITH CHECK يضمن صحة البيانات كطبقة دفاع ثانية
 CREATE POLICY "anon_insert_orders"
   ON orders FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (
+    total > 0
+    AND customer_name IS NOT NULL AND customer_name <> ''
+    AND customer_phone IS NOT NULL AND customer_phone <> ''
+  );
 
 -- 6. الطلبات: لا يمكن للعامة القراءة
 -- (يتم التحكم به عبر الـ Proxy فقط)

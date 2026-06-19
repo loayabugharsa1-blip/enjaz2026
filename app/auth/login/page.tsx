@@ -23,7 +23,11 @@ export default function LoginPage() {
       clearTimeout(fallback);
       setSeeding(false);
       const session = getSession();
-      if (session) router.replace("/dashboard");
+      // Only auto-redirect if session exists AND we weren't just redirected here
+      // (avoids infinite loop when middleware blocks a stale session)
+      if (session && !window.location.search.includes("redirect=")) {
+        router.replace("/dashboard");
+      }
     }).catch(() => {
       clearTimeout(fallback);
       setSeeding(false);

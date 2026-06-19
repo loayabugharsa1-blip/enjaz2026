@@ -209,7 +209,7 @@ begin
   new.updated_at = now();
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public;
 
 drop trigger if exists set_updated_at_clients on clients;
 create trigger set_updated_at_clients before update on clients
@@ -235,7 +235,7 @@ begin
   if new.amount_due < 0 then new.amount_due = 0; end if;
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public;
 
 drop trigger if exists trg_calc_invoice_totals on invoices;
 create trigger trg_calc_invoice_totals before insert or update on invoices
@@ -250,7 +250,7 @@ begin
   end if;
   return new;
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public;
 
 drop trigger if exists trg_log_status_change on orders;
 create trigger trg_log_status_change after update of status on orders
@@ -265,7 +265,7 @@ begin
   insert into activity_log (user_id, username, action, entity_type, entity_id, details)
   values (p_user_id, p_username, p_action, p_entity_type, p_entity_id, p_details);
 end;
-$$ language plpgsql;
+$$ language plpgsql set search_path = public;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)

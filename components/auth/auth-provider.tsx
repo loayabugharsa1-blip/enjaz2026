@@ -33,7 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setLoading(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(false); // intentional: init loading state on mount
     const handleStorage = (e: StorageEvent) => {
       if (e.key === null || e.key === "injaz_session") {
         setSession(getSession());

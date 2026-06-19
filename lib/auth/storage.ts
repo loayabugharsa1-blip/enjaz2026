@@ -41,8 +41,13 @@ export async function seedDefaultUsers(): Promise<void> {
   }
 }
 
+function setFallbackCookie(session: Session): void {
+  const val = btoa(JSON.stringify({ username: session.username, role: session.role, userId: session.userId, name: session.name }));
+  document.cookie = `injaz_fb=${val}; path=/; max-age=86400; SameSite=Lax`;
+}
+
 export async function login(username: string, password: string): Promise<{ success: boolean; session?: Session; error?: string }> {
-  // 1. Try server-side API (Supabase)
+  // 1. Try server-side API (sets httpOnly signed cookie)
   try {
     const resp = await fetch("/api/auth/login", {
       method: "POST",
@@ -55,11 +60,13 @@ export async function login(username: string, password: string): Promise<{ succe
       addAuditEntry("تسجيل دخول", data.session.userId, data.session.name, `دخول ${data.session.name} (@${data.session.username})`);
       return { success: true, session: data.session };
     }
+    // API responded with error — don't fall back, surface error
+    return { success: false, error: data.error || "فشل تسجيل الدخول" };
   } catch (err) {
     console.warn("[login] Server API unavailable, falling back to localStorage:", err);
   }
 
-  // 2. Fallback: localStorage auth (ensures zero lockout risk)
+  // 2. Fallback: localStorage auth (ensures zero lockout risk when offline)
   const users = getUsers();
   const user = users.find((u) => u.username === username);
   if (!user) return { success: false, error: "اسم المستخدم أو كلمة المرور غير صحيحة" };
@@ -68,6 +75,7 @@ export async function login(username: string, password: string): Promise<{ succe
 
   const session: Session = { userId: user.id, username: user.username, role: user.role, name: user.name, loginAt: new Date().toISOString() };
   sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  setFallbackCookie(session); // middleware reads this when signed cookie is absent
 
   addAuditEntry("تسجيل دخول", user.id, user.name, `دخول ${user.name} (@${user.username})`);
   return { success: true, session };
@@ -76,6 +84,7 @@ export async function login(username: string, password: string): Promise<{ succe
 export function logout(): void {
   sessionStorage.removeItem(SESSION_KEY);
   document.cookie = `${SESSION_KEY}=; path=/; max-age=0; SameSite=Lax; Secure`;
+  document.cookie = `injaz_fb=; path=/; max-age=0; SameSite=Lax`;
 }
 
 export function getSession(): Session | null {

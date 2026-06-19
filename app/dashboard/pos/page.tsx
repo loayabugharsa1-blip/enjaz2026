@@ -4,6 +4,7 @@ import { useDirection } from "@/hooks/use-direction";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrders } from "@/hooks/use-orders";
 import { POSCalculator } from "@/components/dashboard/pos-calculator";
+import { generateAndUploadInvoice } from "@/lib/invoice-generator";
 
 import type { OrderItem } from "@/types/order";
 
@@ -13,7 +14,7 @@ export default function POSPage() {
   const { create } = useOrders();
 
   const handleComplete = useCallback(async (items: OrderItem[], total: number, deposit: number, remaining: number, customerName: string, customerPhone: string) => {
-    const order = await create({
+    let order = await create({
       items,
       total,
       deposit,
@@ -24,6 +25,12 @@ export default function POSPage() {
       createdBy: session?.name || session?.username || "موظف",
       createdByRole: session?.role || "employee",
     });
+    const url = await generateAndUploadInvoice(order);
+    if (url) {
+      order = { ...order, invoiceImage: url, updatedAt: new Date().toISOString() };
+      const { updateOrder } = await import("@/lib/db");
+      await updateOrder(order);
+    }
     const { printOrderAsHTML } = await import("@/lib/pdf/generator");
     printOrderAsHTML(order, isRtl);
   }, [create, session, isRtl]);

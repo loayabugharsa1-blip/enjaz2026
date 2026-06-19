@@ -14,6 +14,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { generateTrackingCode } from "@/lib/tracking";
 import { downloadCSV } from "@/lib/export/csv";
 import { normalizePhoneToWa } from "@/lib/whatsapp";
+import { generateAndUploadInvoice } from "@/lib/invoice-generator";
 
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   pending: "processing",
@@ -120,22 +121,38 @@ export default function OrdersPage() {
     printOrderAsHTML(order, isRtl);
   }, [orders, isRtl]);
 
+  const handleGenerateInvoice = useCallback(async (orderId: string): Promise<Order | null> => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order || order.invoiceImage) return null;
+    const url = await generateAndUploadInvoice(order);
+    if (!url) { alert("فشل إنشاء الفاتورة"); return null; }
+    const updated = { ...order, invoiceImage: url, updatedAt: new Date().toISOString() };
+    const { updateOrder } = await import("@/lib/db");
+    await updateOrder(updated);
+    await refresh();
+    return updated;
+  }, [orders, refresh]);
+
   const handleStatusChange = useCallback(async (orderId: string, status: OrderStatus) => {
     await updateStatus(orderId, status);
     setOpenMenu(null);
     if (status === "ready") {
       const order = orders.find((o) => o.id === orderId);
-      if (order?.customerPhone) {
-        const raw = order.customerPhone.replace(/[^\d]/g, "");
+      if (!order) return;
+      const updatedOrder = order.invoiceImage
+        ? order
+        : (await handleGenerateInvoice(orderId)) || order;
+      if (updatedOrder?.customerPhone) {
+        const raw = updatedOrder.customerPhone.replace(/[^\d]/g, "");
         const phone = normalizePhoneToWa(raw);
-        const invLine = order.invoiceImage ? `\n📄 رابط الفاتورة: ${order.invoiceImage}` : "";
+        const invLine = updatedOrder.invoiceImage ? `\n📄 رابط الفاتورة: ${updatedOrder.invoiceImage}` : "";
         const msg = isRtl
-          ? `مرحباً ${order.customerName || "العميل"}،\n\nطلبك #${order.id.slice(0, 6)} جاهز للتسليم 🎉\nيمكنك القدوم لاستلامه من مقر الشركة في سرت.\n\n📌 الإجمالي: ${order.total.toLocaleString("en-US")} د.ل\n⏳ المتبقي: ${Math.max(0, order.remaining).toLocaleString("en-US")} د.ل${invLine}\n\nشكراً لثقتكم بإنجاز للدعاية و الإعلان.`
-          : `Dear ${order.customerName || "Customer"},\n\nYour order #${order.id.slice(0, 6)} is ready for pickup 🎉\nYou can collect it from our office in Sirte.\n\n📌 Total: ${order.total.toLocaleString("en-US")} LYD\n⏳ Remaining: ${Math.max(0, order.remaining).toLocaleString("en-US")} LYD${invLine}\n\nThank you for choosing Enjaz Advertising.`;
+          ? `مرحباً ${updatedOrder.customerName || "العميل"}،\n\nطلبك #${updatedOrder.id.slice(0, 6)} جاهز للتسليم 🎉\nيمكنك القدوم لاستلامه من مقر الشركة في سرت.\n\n📌 الإجمالي: ${updatedOrder.total.toLocaleString("en-US")} د.ل\n⏳ المتبقي: ${Math.max(0, updatedOrder.remaining).toLocaleString("en-US")} د.ل${invLine}\n\nشكراً لثقتكم بإنجاز للدعاية و الإعلان.`
+          : `Dear ${updatedOrder.customerName || "Customer"},\n\nYour order #${updatedOrder.id.slice(0, 6)} is ready for pickup 🎉\nYou can collect it from our office in Sirte.\n\n📌 Total: ${updatedOrder.total.toLocaleString("en-US")} LYD\n⏳ Remaining: ${Math.max(0, updatedOrder.remaining).toLocaleString("en-US")} LYD${invLine}\n\nThank you for choosing Enjaz Advertising.`;
         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
       }
     }
-  }, [updateStatus, orders, isRtl]);
+  }, [updateStatus, orders, isRtl, handleGenerateInvoice]);
 
   const handleUploadInvoice = useCallback(async (orderId: string) => {
     const input = document.createElement("input");
@@ -296,10 +313,11 @@ export default function OrdersPage() {
                 </div>
               </div>
               <div className="flex flex-row sm:flex-col gap-2 sm:ms-4 shrink-0">
-                <button onClick={() => handleUploadInvoice(order.id)} className="p-2 hover:bg-blue-900/50 rounded-lg text-blue-400 transition-colors" title={isRtl ? "رفع صورة الفاتورة" : "Upload Invoice"}>
-                  <ImageIcon className="w-4 h-4" />
-                </button>
-                {order.invoiceImage && (
+                {!order.invoiceImage ? (
+                  <button onClick={() => handleGenerateInvoice(order.id)} className="p-2 hover:bg-amber-900/50 rounded-lg text-amber-400 transition-colors" title={isRtl ? "إنشاء الفاتورة" : "Generate Invoice"}>
+                    <FileDown className="w-4 h-4" />
+                  </button>
+                ) : (
                   <>
                     <button onClick={() => setInvoiceView(order.invoiceImage || null)} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-100 transition-colors" title={isRtl ? "عرض الفاتورة" : "View Invoice"}>
                       <Eye className="w-4 h-4" />
@@ -309,6 +327,9 @@ export default function OrdersPage() {
                     </button>
                   </>
                 )}
+                <button onClick={() => handleUploadInvoice(order.id)} className="p-2 hover:bg-blue-900/50 rounded-lg text-blue-400 transition-colors" title={isRtl ? "رفع صورة الفاتورة" : "Upload Invoice"}>
+                  <ImageIcon className="w-4 h-4" />
+                </button>
                 <button onClick={() => handleReprint(order.id)} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-100 transition-colors" title={isRtl ? "طباعة" : "Print"}>
                   <Printer className="w-4 h-4" />
                 </button>

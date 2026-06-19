@@ -48,7 +48,6 @@ export function addReview(name: string, textAr: string, textEn: string, rating: 
   try { seeded = localStorage.getItem(SEED_VERSION_KEY) === SEED_VERSION; } catch {}
   if (seeded) {
     try { localStorage.removeItem(SEED_VERSION_KEY); } catch {}
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }
   const review: ReviewSubmission = {
     id: crypto.randomUUID(),
@@ -59,7 +58,7 @@ export function addReview(name: string, textAr: string, textEn: string, rating: 
     isApproved: true,
     createdAt: new Date().toISOString(),
   };
-  const all = seeded ? [] : getAll();
+  const all = getAll();
   all.unshift(review);
   saveAll(all);
   return review;

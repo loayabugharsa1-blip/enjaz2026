@@ -66,17 +66,32 @@ function matches(list: string[], pathname: string): boolean {
   return list.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
+const FALLBACK_COOKIE = "injaz_fb";
+
 async function getSession(request: NextRequest): Promise<{ role?: string } | null> {
+  // 1. Try signed httpOnly cookie (set by API on success)
   const cookie = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!cookie) return null;
-  try {
-    const decoded = decodeURIComponent(cookie);
-    const payload = await verifySession(decoded);
-    if (!payload) return null;
-    return JSON.parse(payload);
-  } catch {
-    return null;
+  if (cookie) {
+    try {
+      const decoded = decodeURIComponent(cookie);
+      const payload = await verifySession(decoded);
+      if (payload) return JSON.parse(payload);
+    } catch {
+      // fall through to fallback
+    }
   }
+
+  // 2. Fallback: non-httpOnly cookie (set by client when API unavailable)
+  const fb = request.cookies.get(FALLBACK_COOKIE)?.value;
+  if (fb) {
+    try {
+      return JSON.parse(atob(fb));
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 export async function proxy(request: NextRequest) {
