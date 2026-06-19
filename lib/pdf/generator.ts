@@ -1,101 +1,184 @@
 import type { Order } from "@/types/order";
 import { generateQRCode } from "@/lib/qr/generator";
 
-function invoiceHTML(order: Order, isRtl: boolean): string {
-  const rowsHtml = order.items
-    .map(
-      (item, i) => `
-      <tr>
-        <td style="text-align:center;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${i + 1}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${isRtl ? item.nameAr : item.nameEn}</td>
-        <td style="text-align:center;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;direction:ltr">${item.quantity}</td>
-        <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;direction:ltr">${item.unitPrice.toLocaleString("en-US")}</td>
-        <td style="text-align:right;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px;direction:ltr;font-weight:600">${item.total.toLocaleString("en-US")}</td>
-      </tr>`
-    ).join("");
-
-  const company = isRtl ? "إنجاز للدعاية و الاعلان" : "Enjaz Advertising";
-  const title = isRtl ? "فاتورة مبيعات" : "Sales Invoice";
-  const invNum = isRtl ? "رقم الفاتورة" : "Invoice #";
-  const invDate = isRtl ? "التاريخ" : "Date";
-  const invCust = isRtl ? "العميل" : "Customer";
-  const invSeller = isRtl ? "البائع" : "Cashier";
-  const cash = isRtl ? "نقدي" : "Cash";
-  const hItems = isRtl ? ["#", "الصنف", "الكمية", "السعر", "المجموع"] : ["#", "Item", "Qty", "Price", "Total"];
-  const lTotal = isRtl ? "الإجمالي" : "Total";
-  const lDeposit = isRtl ? "العربون" : "Deposit";
-  const lRemain = isRtl ? "المتبقي" : "Remaining";
-  const lyd = isRtl ? "د.ل" : "LYD";
-  const thankYou = isRtl ? "شكراً لتعاملكم مع إنجاز للدعاية و الاعلان" : "Thank you for choosing Enjaz Advertising";
-  const contactInfo = isRtl
-    ? "تنفيذ وإشراف: إنجاز للدعاية و الاعلان | هاتف: 00218910884726 | بريد إلكتروني: enjazprinting2021@gmail.com | العنوان: سرت، ليبيا | فيسبوك: https://www.facebook.com/enjazprinting2021.2022/"
-    : "Executed by: Enjaz Advertising | Tel: 00218910884726 | Email: enjazprinting2021@gmail.com | Address: Sirte, Libya | Facebook: https://www.facebook.com/enjazprinting2021.2022/";
-
-  return `
-<div style="width:210mm;min-height:297mm;padding:15mm 15mm 10mm;font-family:'Helvetica','Arial',sans-serif;background:#fff;color:#1a1a1a;direction:${isRtl ? "rtl" : "ltr"}">
-  <div style="text-align:center;border-bottom:3px solid #dc2626;padding-bottom:12px;margin-bottom:18px">
-    <h1 style="font-size:22px;color:#dc2626;margin:0 0 4px">${company}</h1>
-    <p style="font-size:11px;color:#666;margin:0">${title}</p>
-  </div>
-  <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:18px;padding:10px;background:#f9fafb;border-radius:6px">
-    <div><span style="color:#888;font-size:10px">${invNum}</span><br><span style="font-weight:600">${order.id.slice(0, 8)}</span></div>
-    <div><span style="color:#888;font-size:10px">${invDate}</span><br><span style="font-weight:600">${new Date(order.createdAt).toLocaleDateString("en-US")}</span></div>
-    <div><span style="color:#888;font-size:10px">${invCust}</span><br><span style="font-weight:600">${order.customerName || cash}</span></div>
-    <div><span style="color:#888;font-size:10px">${invSeller}</span><br><span style="font-weight:600">${order.createdBy}</span></div>
-  </div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:12px">
-    <thead>
-      <tr style="background:#dc2626;color:#fff;font-size:12px">
-        ${hItems.map((h) => `<th style="padding:7px 8px;text-align:${h === hItems[1] ? (isRtl ? "right" : "left") : "center"}">${h}</th>`).join("")}
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-  <div style="margin-top:8px">
-    <table style="width:auto;min-width:220px;margin-${isRtl ? "left" : "right"}:0;margin-${isRtl ? "right" : "left"}:auto;border-collapse:collapse">
-      <tr><td style="padding:4px 10px;font-size:12px">${lTotal}</td><td style="padding:4px 10px;font-size:12px;text-align:right;direction:ltr;font-weight:600">${order.total.toLocaleString("en-US")} ${lyd}</td></tr>
-      <tr><td style="padding:4px 10px;font-size:12px">${lDeposit}</td><td style="padding:4px 10px;font-size:12px;text-align:right;direction:ltr">${order.deposit.toLocaleString("en-US")} ${lyd}</td></tr>
-      <tr><td style="padding:6px 10px;font-size:15px;font-weight:700;color:#dc2626;border-top:2px solid #dc2626">${lRemain}</td><td style="padding:6px 10px;font-size:15px;font-weight:700;color:#dc2626;border-top:2px solid #dc2626;text-align:right;direction:ltr">${Math.max(0, order.remaining).toLocaleString("en-US")} ${lyd}</td></tr>
-    </table>
-  </div>
-  <div style="margin-top:15px;display:flex;justify-content:space-between;align-items:start">
-    <div id="invoice-qr"></div>
-    <div style="width:120px;height:70px;border:2px solid #dc2626;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;color:#dc2626">
-      <div>${isRtl ? "إنجاز" : "Enjaz"}</div>
-      <div>${isRtl ? "للدعاية و الاعلان" : "Advertising"}</div>
-      <div>${new Date().toLocaleDateString("en-US")}</div>
-    </div>
-  </div>
-  <div style="text-align:center;font-size:10px;color:#999;margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb">
-    <div>${thankYou}</div>
-    <div style="font-size:7px;color:#aaa;margin-top:5px">${contactInfo}</div>
-  </div>
-</div>`;
-}
-
 export async function generateInvoiceImage(order: Order, isRtl: boolean = true): Promise<Blob> {
-  const container = document.createElement("div");
-  container.innerHTML = invoiceHTML(order, isRtl);
-  container.style.cssText = "position:fixed;left:-9999px;top:0;width:210mm;height:auto;z-index:-1";
-  document.body.appendChild(container);
+  const W = 800, H = 1130, pad = 40;
+  const scale = window.devicePixelRatio || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * scale;
+  canvas.height = H * scale;
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(scale, scale);
 
-  try {
-    const qrDataUrl = await generateQRCode(order.id);
-    const qrImg = document.createElement("img");
-    qrImg.src = qrDataUrl;
-    qrImg.style.cssText = "width:80px;height:80px;display:block";
-    const qrSlot = container.querySelector("#invoice-qr");
-    if (qrSlot) qrSlot.appendChild(qrImg);
+  let y = pad;
 
-    await new Promise((r) => setTimeout(r, 150));
-    const { toJpeg } = await import("html-to-image");
-    const dataUrl = await toJpeg(container, { quality: 0.85, pixelRatio: 1, backgroundColor: "#ffffff" });
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
-    return blob;
-  } finally {
-    document.body.removeChild(container);
+  function text(t: string, x: number, yPos: number, size: number, color: string, align: CanvasTextAlign = "left") {
+    ctx.font = `bold ${size}px Helvetica,Arial,sans-serif`;
+    ctx.textAlign = align;
+    ctx.fillStyle = color;
+    ctx.fillText(t, x, yPos);
   }
+
+  function line(x1: number, y1: number, x2: number, y2: number, color: string, w: number) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function rect(x: number, yPos: number, w: number, h: number, color: string, lw: number) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.strokeRect(x, yPos, w, h);
+  }
+
+  const tAr = (ar: string, en: string) => (isRtl ? ar : en);
+  const fmt = (n: number) => n.toLocaleString("en-US");
+
+  // Background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  // Header
+  text(tAr("إنجاز للدعاية و الاعلان", "Enjaz Advertising"), W / 2, y + 18, 22, "#dc2626", "center");
+  text(tAr("فاتورة مبيعات", "Sales Invoice"), W / 2, y + 30, 11, "#666", "center");
+  line(pad, y + 36, W - pad, y + 36, "#dc2626", 2);
+  y += 50;
+
+  // Details boxes
+  const details = [
+    [tAr("رقم الفاتورة", "Invoice #"), order.id.slice(0, 8)],
+    [tAr("التاريخ", "Date"), new Date(order.createdAt).toLocaleDateString("en-US")],
+    [tAr("العميل", "Customer"), order.customerName || tAr("نقدي", "Cash")],
+    [tAr("البائع", "Cashier"), order.createdBy],
+  ];
+  ctx.fillStyle = "#f9fafb";
+  ctx.fillRect(pad, y - 8, W - 2 * pad, 34);
+  const detW = (W - 2 * pad) / details.length;
+  details.forEach(([lbl, val], i) => {
+    const x = pad + detW * i + detW / 2;
+    text(lbl, x, y - 1, 9, "#888", "center");
+    text(val, x, y + 10, 12, "#1a1a1a", "center");
+  });
+  y += 40;
+
+  // Table header
+  const cols = [
+    { label: "#", align: "center" as CanvasTextAlign },
+    { label: tAr("الصنف", "Item"), align: isRtl ? "right" as CanvasTextAlign : "left" as CanvasTextAlign },
+    { label: tAr("الكمية", "Qty"), align: "center" as CanvasTextAlign },
+    { label: tAr("السعر", "Price"), align: "right" as CanvasTextAlign },
+    { label: tAr("المجموع", "Total"), align: "right" as CanvasTextAlign },
+  ];
+  const colW = [40, W - 2 * pad - 40 - 100 - 100 - 100, 80, 90, 90];
+  const colStarts: number[] = [];
+  let cx = pad;
+  colW.forEach((w) => {
+    colStarts.push(cx);
+    cx += w;
+  });
+
+  ctx.fillStyle = "#dc2626";
+  ctx.fillRect(pad, y - 6, W - 2 * pad, 26);
+  ctx.fillStyle = "#ffffff";
+  cols.forEach((c, i) => {
+    const cx2 = colStarts[i] + colW[i] / 2;
+    let tx = cx2;
+    if (c.align === "left") tx = colStarts[i] + 6;
+    else if (c.align === "right") tx = colStarts[i] + colW[i] - 6;
+    text(c.label, tx, y + 10, 11, "#ffffff", c.align);
+  });
+  y += 26;
+
+  // Table rows
+  ctx.fillStyle = "#1a1a1a";
+  order.items.forEach((item, i) => {
+    const rowY = y + 2;
+    const vals = [
+      (i + 1).toString(),
+      isRtl ? item.nameAr : item.nameEn,
+      item.quantity.toString(),
+      `${fmt(item.unitPrice)}`,
+      `${fmt(item.total)}`,
+    ];
+    const aligns: CanvasTextAlign[] = ["center", isRtl ? "right" : "left", "center", "right", "right"];
+    vals.forEach((v, j) => {
+      const cx3 = colStarts[j] + colW[j] / 2;
+      let tx3 = cx3;
+      if (aligns[j] === "left") tx3 = colStarts[j] + 6;
+      else if (aligns[j] === "right") tx3 = colStarts[j] + colW[j] - 6;
+      ctx.font = `${j === 4 ? "bold " : ""}11px Helvetica,Arial,sans-serif`;
+      ctx.textAlign = aligns[j];
+      ctx.fillStyle = j === 4 ? "#1a1a1a" : "#333";
+      ctx.fillText(v, tx3, rowY + 10);
+    });
+    line(pad, rowY + 18, W - pad, rowY + 18, "#e5e7eb", 1);
+    y += 22;
+  });
+
+  y += 6;
+
+  // Totals
+  const totalsX = W - pad - 200;
+  const totals = [
+    [tAr("الإجمالي", "Total"), `${fmt(order.total)} ${tAr("د.ل", "LYD")}`, false],
+    [tAr("العربون", "Deposit"), `${fmt(order.deposit)} ${tAr("د.ل", "LYD")}`, false],
+    [tAr("المتبقي", "Remaining"), `${fmt(Math.max(0, order.remaining))} ${tAr("د.ل", "LYD")}`, true],
+  ];
+  totals.forEach(([lbl, val, big]) => {
+    ctx.font = big ? "bold 14px Helvetica,Arial,sans-serif" : "12px Helvetica,Arial,sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = big ? "#dc2626" : "#1a1a1a";
+    ctx.fillText(lbl as string, totalsX, y + 5);
+    ctx.textAlign = "right";
+    ctx.fillText(val as string, W - pad, y + 5);
+    if (big) {
+      line(totalsX, y + 10, W - pad, y + 10, "#dc2626", 1.5);
+    }
+    y += big ? 24 : 18;
+  });
+
+  y += 10;
+
+  // QR code + Stamp
+  const qrDataUrl = await generateQRCode(order.id);
+  const qrImg = new Image();
+  qrImg.src = qrDataUrl;
+  await qrImg.decode();
+  ctx.drawImage(qrImg, pad, y, 70, 70);
+  text(tAr("تتبع: ", "Track: ") + order.id.slice(0, 8), pad + 35, y + 82, 8, "#999", "center");
+
+  // Stamp
+  const stampX = W - pad - 100;
+  rect(stampX, y, 100, 55, "#dc2626", 1.5);
+  text(tAr("إنجاز", "Enjaz"), stampX + 50, y + 18, 10, "#dc2626", "center");
+  text(tAr("للدعاية و الاعلان", "Advertising"), stampX + 50, y + 28, 8, "#dc2626", "center");
+  text(new Date().toLocaleDateString("en-US"), stampX + 50, y + 38, 8, "#dc2626", "center");
+
+  y += 100;
+
+  // Footer
+  line(pad, y, W - pad, y, "#e5e7eb", 1);
+  y += 10;
+  text(tAr("شكراً لتعاملكم مع إنجاز للدعاية و الاعلان", "Thank you for choosing Enjaz Advertising"), W / 2, y, 10, "#999", "center");
+  y += 14;
+  const contact = tAr(
+    "تنفيذ وإشراف: إنجاز للدعاية و الاعلان | هاتف: 00218910884726 | بريد إلكتروني: enjazprinting2021@gmail.com | العنوان: سرت، ليبيا",
+    "Executed by: Enjaz Advertising | Tel: 00218910884726 | Email: enjazprinting2021@gmail.com | Address: Sirte, Libya"
+  );
+  ctx.font = "6px Helvetica,Arial,sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#aaa";
+  ctx.fillText(contact, W / 2, y, W - 2 * pad);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((b) => {
+      if (b) resolve(b);
+      else reject(new Error("Canvas toBlob failed"));
+    }, "image/jpeg", 0.88);
+  });
 }
 
 export async function generateInvoicePDF(order: Order, lang: "ar" | "en" = "ar"): Promise<Blob> {
