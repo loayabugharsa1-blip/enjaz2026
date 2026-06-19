@@ -162,19 +162,37 @@ export default function OrdersPage() {
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
-      const fd = new FormData();
-      fd.append("file", file);
+      let url = "";
+
+      // Best-effort cloud upload
       try {
+        const fd = new FormData();
+        fd.append("file", file);
         const resp = await fetchWithCSRF("/api/upload", { method: "POST", body: fd });
-        const data = await resp.json();
-        if (!resp.ok) { alert(data.error || "فشل الرفع"); return; }
-        const order = orders.find((o) => o.id === orderId);
-        if (!order) return;
-        const updated = { ...order, invoiceImage: data.url, updatedAt: new Date().toISOString() };
-        const { updateOrder } = await import("@/lib/db");
-        await updateOrder(updated);
-        await refresh();
-      } catch { alert("فشل رفع الصورة"); }
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.url) url = data.url;
+        }
+      } catch { /* fallback */ }
+
+      // Fallback: read as data URL directly (no cloud dependency)
+      if (!url) {
+        try {
+          url = await new Promise<string>((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result as string);
+            r.onerror = () => reject(r.error);
+            r.readAsDataURL(file);
+          });
+        } catch { alert("فشل رفع الصورة"); return; }
+      }
+
+      const order = orders.find((o) => o.id === orderId);
+      if (!order) return;
+      const updated = { ...order, invoiceImage: url, updatedAt: new Date().toISOString() };
+      const { updateOrder } = await import("@/lib/db");
+      await updateOrder(updated);
+      await refresh();
     };
     input.click();
   }, [orders, refresh]);
