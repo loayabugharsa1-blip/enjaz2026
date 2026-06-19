@@ -5,6 +5,7 @@ import type { Order, OrderItem, OrderStatus } from "@/types/order";
 import type { DbOrder, DbInventoryItem, DbInvoice, DbOrderTrackingEntry } from "@/types/database";
 import type { Role } from "@/types/auth";
 import { saveAutoBackup } from "@/lib/auto-backup";
+import { fetchWithCSRF } from "@/lib/csrf";
 
 
 const DB_NAME = "injaz_db";
@@ -188,7 +189,7 @@ export async function addInventoryItem(item: InventoryItem): Promise<void> {
   try {
     if (isOnline()) {
       const dbItem = mapItemToDbInventory(item);
-      const res = await fetch(inventoryApiUrl(), {
+      const res = await fetchWithCSRF(inventoryApiUrl(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dbItem),
@@ -219,7 +220,7 @@ export async function updateInventoryItem(item: InventoryItem): Promise<void> {
   try {
     if (isOnline()) {
       const dbItem = mapItemToDbInventory(item);
-      const res = await fetch(inventoryApiUrl(), {
+      const res = await fetchWithCSRF(inventoryApiUrl(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dbItem),
@@ -249,7 +250,7 @@ export async function updateInventoryItem(item: InventoryItem): Promise<void> {
 export async function deleteInventoryItem(id: string): Promise<void> {
   try {
     if (isOnline()) {
-      const res = await fetch(`${inventoryApiUrl()}?id=${encodeURIComponent(id)}`, {
+      const res = await fetchWithCSRF(`${inventoryApiUrl()}?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -340,7 +341,7 @@ export async function addOrder(order: Order): Promise<{ cloudSaved: boolean }> {
 
   try {
     if (isOnline()) {
-      const res = await fetch("/api/orders/create", {
+      const res = await fetchWithCSRF("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(order),
@@ -406,7 +407,7 @@ export async function processSyncQueue(): Promise<number> {
     const syncedIds: number[] = [];
     for (const entry of entries) {
       try {
-        const res = await fetch("/api/orders/create", {
+        const res = await fetchWithCSRF("/api/orders/create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(entry.order),
@@ -442,7 +443,7 @@ export async function processSyncQueue(): Promise<number> {
 export async function updateOrder(order: Order): Promise<void> {
   try {
     if (isOnline()) {
-      const res = await fetch("/api/orders/update", {
+      const res = await fetchWithCSRF("/api/orders/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -488,7 +489,7 @@ export async function updateOrderStatusWithTracking(
     throw new AppError("NETWORK_ERROR", "لا يمكن تحديث الحالة بدون اتصال بالإنترنت");
   }
 
-  const res = await fetch("/api/orders/status", {
+  const res = await fetchWithCSRF("/api/orders/status", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
     body: JSON.stringify({ orderId, newStatus, changedBy, changedByRole, note }),
@@ -562,7 +563,7 @@ export async function getOrdersByPhone(phone: string): Promise<Order[]> {
 export async function deleteOrder(id: string): Promise<void> {
   try {
     if (isOnline()) {
-      const res = await fetch("/api/orders/delete", {
+      const res = await fetchWithCSRF("/api/orders/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),

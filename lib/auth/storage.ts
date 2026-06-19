@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import type { User, Session, Role } from "@/types/auth";
 import { addAuditEntry } from "@/lib/audit";
+import { fetchWithCSRF } from "@/lib/csrf";
 const SALT_ROUNDS = 10;
 const STORAGE_KEY = "injaz_users";
 const SESSION_KEY = "injaz_session";
@@ -101,7 +102,7 @@ export function getSession(): Session | null {
 async function trySyncToSupabase(): Promise<void> {
   try {
     const users = getUsers().map(({ passwordHash, ...rest }) => ({ ...rest, password_hash: passwordHash }));
-    const res = await fetch(SYNC_URL, {
+    const res = await fetchWithCSRF(SYNC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ users }),
@@ -135,7 +136,7 @@ export async function changePassword(userId: string, oldPassword: string, newPas
   saveUsers(users);
   // Then try Supabase sync (best-effort)
   try {
-    await fetch("/api/auth/change-password", {
+    await fetchWithCSRF("/api/auth/change-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword: oldPassword, newPassword }),
@@ -157,7 +158,7 @@ export async function adminChangePassword(username: string, newPassword: string)
   saveUsers(users);
   // Then try syncing to Supabase (best-effort)
   try {
-    await fetch("/api/auth/change-password", {
+    await fetchWithCSRF("/api/auth/change-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetUsername: username, newPassword }),

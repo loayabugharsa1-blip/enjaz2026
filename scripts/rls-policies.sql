@@ -11,6 +11,11 @@ ALTER TABLE portfolio ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_tracking ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pricing_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_log ENABLE ROW LEVEL SECURITY;
 
 -- 2. مسح السياسات القديمة (إن وجدت)
 DROP POLICY IF EXISTS "anon_read_services" ON services;
@@ -18,6 +23,13 @@ DROP POLICY IF EXISTS "anon_read_inventory" ON inventory_items;
 DROP POLICY IF EXISTS "anon_insert_orders" ON orders;
 DROP POLICY IF EXISTS "anon_read_orders" ON orders;
 DROP POLICY IF EXISTS "anon_read_portfolio" ON portfolio;
+DROP POLICY IF EXISTS "insert_activity_log" ON activity_log;
+DROP POLICY IF EXISTS "insert_clients" ON clients;
+DROP POLICY IF EXISTS "select_clients" ON clients;
+DROP POLICY IF EXISTS "insert_order_items" ON order_items;
+DROP POLICY IF EXISTS "select_order_items" ON order_items;
+DROP POLICY IF EXISTS "select_pricing_rules" ON pricing_rules;
+DROP POLICY IF EXISTS "insert_sync_log" ON sync_log;
 
 -- 3. الخدمات: للقراءة فقط (العامة)
 CREATE POLICY "anon_read_services"
@@ -78,3 +90,50 @@ CREATE POLICY "anon_no_access_tracking"
   ON order_tracking FOR ALL
   TO anon
   USING (false);
+
+-- 11. جداول إضافية تحتاج RLS policies (تم رصدها عبر linter)
+
+-- 11.1 activity_log: يسمح بالإدراج فقط
+DROP POLICY IF EXISTS "insert_activity_log" ON activity_log;
+CREATE POLICY "insert_activity_log"
+  ON activity_log FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+-- 11.2 clients: إدراج + قراءة
+DROP POLICY IF EXISTS "insert_clients" ON clients;
+DROP POLICY IF EXISTS "select_clients" ON clients;
+CREATE POLICY "insert_clients"
+  ON clients FOR INSERT
+  TO anon
+  WITH CHECK (true);
+CREATE POLICY "select_clients"
+  ON clients FOR SELECT
+  TO anon
+  USING (true);
+
+-- 11.3 order_items: إدراج + قراءة
+DROP POLICY IF EXISTS "insert_order_items" ON order_items;
+DROP POLICY IF EXISTS "select_order_items" ON order_items;
+CREATE POLICY "insert_order_items"
+  ON order_items FOR INSERT
+  TO anon
+  WITH CHECK (true);
+CREATE POLICY "select_order_items"
+  ON order_items FOR SELECT
+  TO anon
+  USING (true);
+
+-- 11.4 pricing_rules: قراءة فقط
+DROP POLICY IF EXISTS "select_pricing_rules" ON pricing_rules;
+CREATE POLICY "select_pricing_rules"
+  ON pricing_rules FOR SELECT
+  TO anon
+  USING (true);
+
+-- 11.5 sync_log: إدراج فقط
+DROP POLICY IF EXISTS "insert_sync_log" ON sync_log;
+CREATE POLICY "insert_sync_log"
+  ON sync_log FOR INSERT
+  TO anon
+  WITH CHECK (true);

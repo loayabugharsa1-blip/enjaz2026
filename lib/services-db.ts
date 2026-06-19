@@ -1,5 +1,6 @@
 import type { Service } from "@/types/common";
 import { supabase } from "@/lib/supabase";
+import { fetchWithCSRF } from "@/lib/csrf";
 
 const STORAGE_KEY = "injaz_services";
 const SEED_VERSION_KEY = "injaz_services_seed_version";
@@ -133,7 +134,7 @@ function saveLocal(services: Service[]): void {
 async function syncToCloud(services: Service[]): Promise<void> {
   try {
     for (const s of services) {
-      await fetch("/api/services", {
+      await fetchWithCSRF("/api/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -236,7 +237,7 @@ export async function updateService(id: string, updates: Partial<Service>): Prom
   all[idx] = { ...all[idx], ...updates };
   saveLocal(all);
   try {
-    await fetch("/api/services", {
+    await fetchWithCSRF("/api/services", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -265,7 +266,7 @@ export async function deleteService(id: string): Promise<boolean> {
   all.splice(idx, 1);
   saveLocal(all);
   try {
-    await fetch("/api/services", {
+    await fetchWithCSRF("/api/services", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),

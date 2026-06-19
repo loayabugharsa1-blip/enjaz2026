@@ -15,6 +15,7 @@ import { generateTrackingCode } from "@/lib/tracking";
 import { downloadCSV } from "@/lib/export/csv";
 import { normalizePhoneToWa } from "@/lib/whatsapp";
 import { generateAndUploadInvoice } from "@/lib/invoice-generator";
+import { fetchWithCSRF } from "@/lib/csrf";
 
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   pending: "processing",
@@ -164,7 +165,7 @@ export default function OrdersPage() {
       const fd = new FormData();
       fd.append("file", file);
       try {
-        const resp = await fetch("/api/upload", { method: "POST", body: fd });
+        const resp = await fetchWithCSRF("/api/upload", { method: "POST", body: fd });
         const data = await resp.json();
         if (!resp.ok) { alert(data.error || "فشل الرفع"); return; }
         const order = orders.find((o) => o.id === orderId);

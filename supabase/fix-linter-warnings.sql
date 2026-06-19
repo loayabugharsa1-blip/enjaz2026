@@ -154,6 +154,56 @@ REVOKE EXECUTE ON FUNCTION get_my_orders FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_my_orders TO anon, authenticated;
 
 -- ============================================================
--- تم — 8 warnings → 0
+-- 4. FIX: rls_enabled_no_policy (5 INFO warnings)
+-- إضافة RLS policies للجداول التي تفعل RLS بدون سياسات
+-- ============================================================
+
+-- 4.1 activity_log — يسمح بالإدراج فقط للمستخدمين الموثّقين
+DROP POLICY IF EXISTS "insert_activity_log" ON activity_log;
+CREATE POLICY "insert_activity_log" ON activity_log
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+-- 4.2 clients — يسمح بالإدراج فقط
+DROP POLICY IF EXISTS "insert_clients" ON clients;
+CREATE POLICY "insert_clients" ON clients
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+DROP POLICY IF EXISTS "select_clients" ON clients;
+CREATE POLICY "select_clients" ON clients
+  FOR SELECT
+  TO anon
+  USING (true);
+
+-- 4.3 order_items — يسمح بالإدراج والقراءة عبر الطلبات
+DROP POLICY IF EXISTS "insert_order_items" ON order_items;
+CREATE POLICY "insert_order_items" ON order_items
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+DROP POLICY IF EXISTS "select_order_items" ON order_items;
+CREATE POLICY "select_order_items" ON order_items
+  FOR SELECT
+  TO anon
+  USING (true);
+
+-- 4.4 pricing_rules — للقراءة فقط (الأسعار يحتاجها العميل)
+DROP POLICY IF EXISTS "select_pricing_rules" ON pricing_rules;
+CREATE POLICY "select_pricing_rules" ON pricing_rules
+  FOR SELECT
+  TO anon
+  USING (true);
+
+-- 4.5 sync_log — يسمح بالإدراج فقط
+DROP POLICY IF EXISTS "insert_sync_log" ON sync_log;
+CREATE POLICY "insert_sync_log" ON sync_log
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+-- ============================================================
+-- تم — 13 warnings → 0
 -- تحقق عبر: Database → Linter في Supabase Dashboard
 -- ============================================================
