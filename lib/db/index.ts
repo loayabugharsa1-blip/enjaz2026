@@ -123,12 +123,16 @@ export async function getAllInventory(): Promise<InventoryItem[]> {
       const cloudIds = new Set(cloudItems.map((i) => i.id));
       const localOnly = localItems.filter((i) => !cloudIds.has(i.id));
 
-      // Single readwrite transaction — eliminates race between read and write
       const writeTx = db.transaction("inventory", "readwrite");
       const writeStore = writeTx.objectStore("inventory");
       writeStore.clear();
       for (const item of cloudItems) {
-        writeStore.put(item);
+        const local = localItems.find((l) => l.id === item.id);
+        if (local && local.updatedAt > item.updatedAt) {
+          writeStore.put(local);
+        } else {
+          writeStore.put(item);
+        }
       }
       for (const item of localOnly) {
         writeStore.put(item);
@@ -137,7 +141,12 @@ export async function getAllInventory(): Promise<InventoryItem[]> {
         writeTx.oncomplete = () => resolve();
         writeTx.onerror = () => reject(new AppError("DB_ERROR", "فشل تحديث المخزون المحلي"));
       });
-      return [...cloudItems, ...localOnly];
+      const merged = cloudItems.map((item) => {
+        const local = localItems.find((l) => l.id === item.id);
+        if (local && local.updatedAt > item.updatedAt) return local;
+        return item;
+      });
+      return [...merged, ...localOnly];
     }
 
     return localItems;
