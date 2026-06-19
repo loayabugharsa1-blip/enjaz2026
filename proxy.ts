@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySession } from "@/lib/auth/session";
+import { verifyFallback } from "@/lib/fallback-cookie";
 
 const SESSION_COOKIE = "injaz_session";
 const CSRF_COOKIE = "injaz_csrf";
@@ -81,11 +82,13 @@ async function getSession(request: NextRequest): Promise<{ role?: string } | nul
     }
   }
 
-  // 2. Fallback: non-httpOnly cookie (set by client when API unavailable)
+  // 2. Fallback: non-httpOnly cookie (signed, set by client when API unavailable)
   const fb = request.cookies.get(FALLBACK_COOKIE)?.value;
   if (fb) {
     try {
-      return JSON.parse(atob(fb));
+      const decoded = atob(fb);
+      const payload = await verifyFallback(decoded);
+      if (payload) return JSON.parse(payload);
     } catch {
       return null;
     }

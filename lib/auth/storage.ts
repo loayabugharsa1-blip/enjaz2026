@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import type { User, Session, Role } from "@/types/auth";
 import { addAuditEntry } from "@/lib/audit";
 import { fetchWithCSRF } from "@/lib/csrf";
+import { signFallback } from "@/lib/fallback-cookie";
 const SALT_ROUNDS = 10;
 const STORAGE_KEY = "injaz_users";
 const SESSION_KEY = "injaz_session";
@@ -42,8 +43,10 @@ export async function seedDefaultUsers(): Promise<void> {
   }
 }
 
-function setFallbackCookie(session: Session): void {
-  const val = btoa(JSON.stringify({ username: session.username, role: session.role, userId: session.userId, name: session.name }));
+async function setFallbackCookie(session: Session): Promise<void> {
+  const payload = JSON.stringify({ username: session.username, role: session.role, userId: session.userId, name: session.name });
+  const signed = await signFallback(payload);
+  const val = btoa(signed);
   document.cookie = `injaz_fb=${val}; path=/; max-age=86400; SameSite=Lax`;
 }
 
