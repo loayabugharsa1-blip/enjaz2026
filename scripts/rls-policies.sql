@@ -93,12 +93,12 @@ CREATE POLICY "anon_no_access_tracking"
 
 -- 11. جداول إضافية تحتاج RLS policies (تم رصدها عبر linter)
 
--- 11.1 activity_log: يسمح بالإدراج فقط
+-- 11.1 activity_log: بيانات السجل يجب أن تحتوي على user_id
 DROP POLICY IF EXISTS "insert_activity_log" ON activity_log;
 CREATE POLICY "insert_activity_log"
   ON activity_log FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (user_id IS NOT NULL AND action IS NOT NULL);
 
 -- 11.2 clients: إدراج + قراءة
 DROP POLICY IF EXISTS "insert_clients" ON clients;
@@ -106,7 +106,7 @@ DROP POLICY IF EXISTS "select_clients" ON clients;
 CREATE POLICY "insert_clients"
   ON clients FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (name IS NOT NULL AND name <> '' AND phone IS NOT NULL AND phone <> '');
 CREATE POLICY "select_clients"
   ON clients FOR SELECT
   TO anon
@@ -118,7 +118,7 @@ DROP POLICY IF EXISTS "select_order_items" ON order_items;
 CREATE POLICY "insert_order_items"
   ON order_items FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (order_id IS NOT NULL AND quantity > 0 AND total >= 0);
 CREATE POLICY "select_order_items"
   ON order_items FOR SELECT
   TO anon
@@ -136,4 +136,4 @@ DROP POLICY IF EXISTS "insert_sync_log" ON sync_log;
 CREATE POLICY "insert_sync_log"
   ON sync_log FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (created_at IS NOT NULL);

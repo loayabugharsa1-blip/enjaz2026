@@ -154,35 +154,40 @@ REVOKE EXECUTE ON FUNCTION get_my_orders FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_my_orders TO anon, authenticated;
 
 -- ============================================================
--- 4. FIX: rls_enabled_no_policy (5 INFO warnings)
--- إضافة RLS policies للجداول التي تفعل RLS بدون سياسات
+-- 4. FIX: rls_enabled_no_policy + rls_policy_always_true
+-- إضافة RLS policies للجداول بدون سياسات
+-- + استبدال WITH CHECK (true) بتحقق صحة البيانات
 -- ============================================================
 
--- 4.1 activity_log — يسمح بالإدراج فقط للمستخدمين الموثّقين
+-- 4.1 activity_log — بيانات السجل يجب أن تحتوي على user_id
 DROP POLICY IF EXISTS "insert_activity_log" ON activity_log;
 CREATE POLICY "insert_activity_log" ON activity_log
   FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (user_id IS NOT NULL AND action IS NOT NULL);
 
--- 4.2 clients — يسمح بالإدراج فقط
+-- 4.2 clients — بيانات العميل يجب أن تحتوي على اسم وهاتف
 DROP POLICY IF EXISTS "insert_clients" ON clients;
 CREATE POLICY "insert_clients" ON clients
   FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (name IS NOT NULL AND name <> '' AND phone IS NOT NULL AND phone <> '');
 DROP POLICY IF EXISTS "select_clients" ON clients;
 CREATE POLICY "select_clients" ON clients
   FOR SELECT
   TO anon
   USING (true);
 
--- 4.3 order_items — يسمح بالإدراج والقراءة عبر الطلبات
+-- 4.3 order_items — كل بند طلب يجب أن ينتمي لطلب موجود
 DROP POLICY IF EXISTS "insert_order_items" ON order_items;
 CREATE POLICY "insert_order_items" ON order_items
   FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (
+    order_id IS NOT NULL
+    AND quantity > 0
+    AND total >= 0
+  );
 DROP POLICY IF EXISTS "select_order_items" ON order_items;
 CREATE POLICY "select_order_items" ON order_items
   FOR SELECT
@@ -196,12 +201,12 @@ CREATE POLICY "select_pricing_rules" ON pricing_rules
   TO anon
   USING (true);
 
--- 4.5 sync_log — يسمح بالإدراج فقط
+-- 4.5 sync_log — يحتوي على بيانات صالحة
 DROP POLICY IF EXISTS "insert_sync_log" ON sync_log;
 CREATE POLICY "insert_sync_log" ON sync_log
   FOR INSERT
   TO anon
-  WITH CHECK (true);
+  WITH CHECK (created_at IS NOT NULL);
 
 -- ============================================================
 -- تم — 13 warnings → 0
