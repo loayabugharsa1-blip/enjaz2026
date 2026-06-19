@@ -86,6 +86,9 @@ CREATE POLICY "anon_insert_orders" ON orders
 -- مع إضافة SELECT policy محدودة للـ anon
 -- ============================================================
 
+-- إضافة عمود invoice_image إن لم يكن موجوداً
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_image TEXT;
+
 -- حذف الدوال القديمة
 DROP FUNCTION IF EXISTS get_order_by_tracking_id(TEXT);
 DROP FUNCTION IF EXISTS get_my_orders(TEXT);

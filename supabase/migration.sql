@@ -93,7 +93,8 @@ create table if not exists orders (
   created_by      text not null,
   created_by_role user_role not null default 'employee',
   created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now()
+  updated_at      timestamptz not null default now(),
+  invoice_image   text
 );
 
 create index if not exists idx_orders_status on orders (status);
